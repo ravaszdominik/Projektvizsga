@@ -1,0 +1,71 @@
+/* ===== BATECH - CSS VÁLTOZÓK ===== */
+
+:root {
+    /* Brand colors */
+    --primary-dark: #1a1a2e;
+    --secondary-dark: #16213e;
+    --accent-blue: #3498db;
+    --accent-light: #0ea5e9;
+
+    /* Surface colors */
+    --bg-body: #f0f4f8;
+    --bg-surface: #ffffff;
+    --bg-surface-2: #f8fafc;
+    --bg-input: #ffffff;
+
+    /* Border */
+    --border-color: #e2e8f0;
+
+    /* Text */
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
+    --text-muted: #94a3b8;
+    --text-on-dark: #f1f5f9;
+
+    /* Shadows */
+    --shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 12px 32px -4px rgba(0, 0, 0, 0.14);
+
+    /* Status */
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+
+    /* Legacy aliases */
+    --light-gray: #f8fafc;
+    --medium-gray: #e2e8f0;
+    --dark-gray: #64748b;
+    --text-dark: #1e293b;
+    --text-light: #f1f5f9;
+}
+
+/* ===== DARK THEME ===== */
+.dark-theme {
+    --primary-dark: #0f172a;
+    --secondary-dark: #1e293b;
+
+    --bg-body: #0f172a;
+    --bg-surface: #1e293b;
+    --bg-surface-2: #263348;
+    --bg-input: #1a2540;
+
+    --border-color: #334155;
+
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --text-on-dark: #f8fafc;
+
+    /* Legacy aliases */
+    --light-gray: #1e293b;
+    --medium-gray: #334155;
+    --dark-gray: #94a3b8;
+    --text-dark: #f1f5f9;
+    --text-light: #f8fafc;
+
+    --shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 12px 32px -4px rgba(0, 0, 0, 0.5);
+
+    background-color: #0f172a;
+    color: #f1f5f9;
+}

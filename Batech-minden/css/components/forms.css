@@ -1,0 +1,283 @@
+/* ===== FORMS ===== */
+
+.form-group {
+    margin-bottom: 1.4rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    font-size: 1rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    background: var(--bg-input);
+    color: var(--text-primary);
+    appearance: auto;
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    color: var(--text-muted);
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+}
+
+.form-group input[readonly],
+.form-group input[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ===== AUTH FORM ===== */
+.auth-form {
+    background: var(--bg-surface);
+    padding: 2.5rem;
+    border-radius: 16px;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border-color);
+    border-top: 4px solid var(--accent-blue);
+    color: var(--text-primary);
+}
+
+.auth-form .form-group label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-primary);
+}
+
+.auth-form .form-group label i {
+    color: var(--accent-blue);
+    width: 18px;
+}
+
+/* ===== FORM OPTIONS ===== */
+.form-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+/* ===== CHECKBOX ===== */
+.checkbox-container {
+    display: block;
+    position: relative;
+    padding-left: 30px;
+    cursor: pointer;
+    user-select: none;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.checkbox-container input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.checkmark {
+    position: absolute;
+    top: 2px; left: 0;
+    height: 20px; width: 20px;
+    background: var(--bg-input);
+    border-radius: 5px;
+    border: 2px solid var(--border-color);
+    transition: all 0.2s ease;
+}
+
+.checkbox-container:hover .checkmark {
+    border-color: var(--accent-blue);
+}
+
+.checkbox-container input:checked ~ .checkmark {
+    background: var(--accent-blue);
+    border-color: var(--accent-blue);
+}
+
+.checkmark::after {
+    content: "";
+    position: absolute;
+    display: none;
+    left: 6px; top: 2px;
+    width: 5px; height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.checkbox-container input:checked ~ .checkmark::after {
+    display: block;
+}
+
+.checkbox-container a {
+    color: var(--accent-blue);
+    font-weight: 600;
+}
+
+.forgot-password {
+    color: var(--accent-blue);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.forgot-password:hover {
+    text-decoration: underline;
+}
+
+/* ===== PASSWORD STRENGTH ===== */
+.password-strength {
+    margin-top: 0.5rem;
+}
+
+.strength-bar {
+    height: 4px;
+    background: var(--border-color);
+    border-radius: 2px;
+    margin-top: 0.5rem;
+    overflow: hidden;
+}
+
+.strength-bar-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 2px;
+    transition: width 0.3s ease, background 0.3s ease;
+}
+
+.strength-weak   { width: 33%; background: var(--danger); }
+.strength-medium { width: 66%; background: var(--warning); }
+.strength-strong { width: 100%; background: var(--success); }
+
+.strength-text {
+    font-size: 0.82rem;
+    margin-top: 0.3rem;
+    font-weight: 600;
+}
+
+/* ===== FORM ROW ===== */
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+@media (max-width: 640px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .auth-form {
+        padding: 1.5rem;
+    }
+}
+
+/* ===== INPUT WITH ICON WRAPPER ===== */
+.input-icon-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-icon-wrap > i:first-child {
+    position: absolute;
+    left: 0.9rem;
+    color: var(--text-muted);
+    pointer-events: none;
+    font-size: 0.95rem;
+    z-index: 1;
+}
+
+.input-icon-wrap input {
+    padding-left: 2.5rem;
+}
+
+.input-icon-wrap input:has(~ .toggle-password) {
+    padding-right: 2.8rem;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 0.75rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 0.25rem;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.toggle-password:hover {
+    color: var(--accent-blue);
+}
+
+/* ===== SIMPLE CHECKBOX LABEL ===== */
+.checkbox-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    margin-top: 2px;
+    accent-color: var(--accent-blue);
+    cursor: pointer;
+}
+
+.checkbox-label a {
+    color: var(--accent-blue);
+    font-weight: 600;
+}
+
+/* ===== STRENGTH & MATCH LABELS ===== */
+.strength-label,
+.match-label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 600;
+    margin-top: 0.3rem;
+    min-height: 1.1em;
+}
+
+/* ===== AUTH LOGO ICON ===== */
+.auth-logo-icon {
+    font-size: 2.5rem;
+    color: var(--accent-blue);
+    display: block;
+    margin-bottom: 0.75rem;
+}
+
+/* ===== BTN BLOCK ===== */
+.btn-block {
+    width: 100%;
+    justify-content: center;
+}

@@ -1,0 +1,124 @@
+/* ===== TABLES ===== */
+
+.table-container {
+    overflow-x: auto;
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    margin-bottom: 2rem;
+    border: 1px solid var(--border-color);
+}
+
+.pricing-table,
+.admin-table,
+.profile-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg-surface);
+    color: var(--text-primary);
+}
+
+.pricing-table th,
+.admin-table th,
+.profile-table th {
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--secondary-dark) 100%);
+    color: #f1f5f9;
+    font-weight: 600;
+    padding: 1rem 1.5rem;
+    text-align: left;
+    font-size: 0.95rem;
+    letter-spacing: 0.02em;
+}
+
+.pricing-table td,
+.admin-table td,
+.profile-table td {
+    padding: 1rem 1.5rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+    vertical-align: middle;
+}
+
+.pricing-table tr:last-child td,
+.admin-table tr:last-child td,
+.profile-table tr:last-child td {
+    border-bottom: none;
+}
+
+.pricing-table tbody tr:hover,
+.admin-table tbody tr:hover,
+.profile-table tbody tr:hover {
+    background: var(--bg-surface-2);
+}
+
+/* Price cell highlight */
+.price-cell {
+    font-weight: 700;
+    color: var(--accent-blue) !important;
+    white-space: nowrap;
+}
+
+/* ===== PRICING SECTION ===== */
+.pricing-section {
+    margin-bottom: 3.5rem;
+    background: var(--bg-surface);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+}
+
+.pricing-section-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem 2rem;
+    background: linear-gradient(135deg, var(--primary-dark), var(--secondary-dark));
+    color: white;
+}
+
+.pricing-section-header i {
+    font-size: 1.5rem;
+    color: var(--accent-light);
+}
+
+.pricing-section-header h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: white;
+    margin: 0;
+}
+
+/* Legacy h2 style for arak.php */
+.pricing-section > h2 {
+    font-size: 1.6rem;
+    color: white;
+    padding: 1.25rem 1.75rem;
+    background: linear-gradient(135deg, var(--primary-dark), var(--secondary-dark));
+    margin: 0;
+    border-bottom: none;
+}
+
+/* Note box */
+.note-box {
+    background: var(--bg-surface-2);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--accent-blue);
+    border-radius: 10px;
+    padding: 1.5rem 2rem;
+    margin-top: 2rem;
+    color: var(--text-primary);
+}
+
+.note-box p {
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+}
+
+.note-box p:last-child {
+    margin-bottom: 0;
+}
+
+.booking-cta {
+    margin-top: 1rem;
+}

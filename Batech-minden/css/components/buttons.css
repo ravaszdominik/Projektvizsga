@@ -1,0 +1,188 @@
+/* ===== BUTTONS ===== */
+
+.btn {
+    padding: 0.75rem 1.75rem;
+    border-radius: 10px;
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    font-size: 1rem;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+
+.btn:hover {
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: var(--accent-blue);
+    color: white;
+    border-color: var(--accent-blue);
+}
+
+.btn-primary:hover {
+    background: var(--accent-light);
+    border-color: var(--accent-light);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(52, 152, 219, 0.35);
+    color: white;
+}
+
+.btn-secondary {
+    background: transparent;
+    color: white;
+    border-color: rgba(255,255,255,0.7);
+}
+
+.btn-secondary:hover {
+    background: white;
+    color: var(--primary-dark);
+    border-color: white;
+    transform: translateY(-2px);
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--accent-blue);
+    border-color: var(--accent-blue);
+}
+
+.btn-outline:hover {
+    background: var(--accent-blue);
+    color: white;
+    transform: translateY(-2px);
+}
+
+.btn-block {
+    width: 100%;
+    justify-content: center;
+}
+
+.btn-logout {
+    background: var(--danger);
+    color: white;
+    padding: 0.55rem 1.25rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.25s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.btn-logout:hover {
+    background: #dc2626;
+    transform: translateY(-1px);
+}
+
+/* ===== NAV BUTTONS ===== */
+.btn-login,
+.btn-register,
+.btn-admin {
+    padding: 0.45rem 1.1rem !important;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem !important;
+    white-space: nowrap;
+}
+
+.btn-login {
+    background: transparent;
+    border: 2px solid rgba(255,255,255,0.5) !important;
+    color: rgba(255,255,255,0.9) !important;
+}
+
+.btn-login:hover {
+    background: rgba(255,255,255,0.1) !important;
+    border-color: white !important;
+    color: white !important;
+}
+
+.btn-register {
+    background: var(--accent-blue) !important;
+    color: white !important;
+    border: 2px solid var(--accent-blue) !important;
+}
+
+.btn-register:hover {
+    background: var(--accent-light) !important;
+    border-color: var(--accent-light) !important;
+    color: white !important;
+}
+
+.btn-admin {
+    background: var(--success) !important;
+    color: white !important;
+    border: 2px solid var(--success) !important;
+}
+
+/* ===== THEME TOGGLE ===== */
+.theme-toggle {
+    background: transparent !important;
+    border: 2px solid rgba(255,255,255,0.4) !important;
+    color: rgba(255,255,255,0.85) !important;
+    padding: 0.45rem 0.9rem !important;
+    border-radius: 8px;
+    font-size: 1rem !important;
+    transition: all 0.25s ease;
+}
+
+.theme-toggle:hover {
+    background: rgba(255,255,255,0.15) !important;
+    border-color: white !important;
+    color: white !important;
+}
+
+/* ===== ACTION BUTTONS (admin/tables) ===== */
+.btn-action {
+    padding: 0.35rem 0.75rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin: 0 0.15rem;
+}
+
+.btn-edit    { background: var(--accent-blue); color: white; }
+.btn-edit:hover { background: var(--accent-light); }
+
+.btn-delete  { background: var(--danger); color: white; }
+.btn-delete:hover { background: #dc2626; }
+
+.btn-approve { background: var(--success); color: white; }
+.btn-approve:hover { background: #059669; }
+
+.btn-complete { background: #8b5cf6; color: white; }
+.btn-complete:hover { background: #7c3aed; }
+
+/* ===== REFERENCE DETAIL BUTTON ===== */
+.btn-reference-details {
+    width: 100%;
+    padding: 0.75rem;
+    background: var(--accent-blue);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.25s ease;
+    font-size: 0.95rem;
+}
+
+.btn-reference-details:hover {
+    background: var(--accent-light);
+}

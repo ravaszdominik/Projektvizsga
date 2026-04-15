@@ -1,0 +1,277 @@
+/* ===== ÉRTÉKELÉSEK & ÁRAK OLDALAK ===== */
+
+/* ===== ÉRTÉKELÉSEK OLDAL ===== */
+
+.reviews-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+}
+
+.review-card {
+    background: var(--bg-surface);
+    border-radius: 14px;
+    padding: 1.5rem;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.review-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+}
+
+.review-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.reviewer-name {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.review-date {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.review-stars {
+    color: #f59e0b;
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+    letter-spacing: 2px;
+}
+
+.review-text {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+/* ===== ÁRAK OLDAL ===== */
+
+.pricing-section {
+    margin-bottom: 3rem;
+    background: var(--bg-surface);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+}
+
+.pricing-section h2 {
+    padding: 1.25rem 1.75rem;
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--secondary-dark) 100%);
+    color: #fff;
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.table-container {
+    overflow-x: auto;
+}
+
+.pricing-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.pricing-table thead th {
+    background: var(--bg-surface-2);
+    color: var(--text-primary);
+    padding: 0.9rem 1.25rem;
+    text-align: left;
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.pricing-table tbody tr {
+    border-bottom: 1px solid var(--border-color);
+    transition: background 0.15s ease;
+}
+
+.pricing-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.pricing-table tbody tr:hover {
+    background: var(--bg-surface-2);
+}
+
+.pricing-table td {
+    padding: 0.9rem 1.25rem;
+    color: var(--text-primary);
+    vertical-align: middle;
+}
+
+.pricing-table td strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.price-cell {
+    font-weight: 700;
+    color: var(--accent-blue);
+    white-space: nowrap;
+    font-size: 1rem;
+}
+
+.note-box {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--accent-blue);
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    margin-top: 2rem;
+    color: var(--text-primary);
+}
+
+.note-box p {
+    margin-bottom: 0.5rem;
+    color: var(--text-secondary);
+}
+
+.note-box p:last-child {
+    margin-bottom: 0;
+}
+
+.note-box strong {
+    color: var(--text-primary);
+}
+
+.booking-cta {
+    margin-top: 1rem;
+}
+
+/* ===== PRIORITY BADGES ===== */
+
+.priority-badge {
+    display: inline-block;
+    padding: 0.25rem 0.7rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.priority-normal {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.priority-high {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.priority-urgent {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.dark-theme .priority-normal {
+    background: #1e3a5f;
+    color: #93c5fd;
+}
+
+.dark-theme .priority-high {
+    background: #451a03;
+    color: #fcd34d;
+}
+
+.dark-theme .priority-urgent {
+    background: #450a0a;
+    color: #fca5a5;
+}
+
+/* ===== RESPONSIVE ===== */
+
+@media (max-width: 768px) {
+    .reviews-container {
+        grid-template-columns: 1fr;
+    }
+
+    .pricing-table thead th,
+    .pricing-table td {
+        padding: 0.7rem 0.9rem;
+        font-size: 0.9rem;
+    }
+}
+
+/* ===== AVERAGE RATING BLOCK ===== */
+
+.average-rating {
+    text-align: center;
+    padding: 2rem;
+    background: var(--bg-surface);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+    margin-bottom: 2.5rem;
+}
+
+.average-rating h2 {
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+}
+
+.rating-stars {
+    font-size: 2rem;
+    color: #f59e0b;
+    letter-spacing: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.rating-number {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+}
+
+/* ===== ADD REVIEW SECTION ===== */
+
+.add-review-section {
+    margin-top: 3rem;
+    padding: 2rem;
+    background: var(--bg-surface);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+}
+
+.add-review-section h2 {
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+}
+
+.review-form {
+    max-width: 600px;
+}
+
+.form-note {
+    margin-top: 1rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+/* ===== REVIEW CARD STARS ===== */
+
+.review-rating {
+    color: #f59e0b;
+    font-size: 0.95rem;
+    margin-top: 0.25rem;
+}
+
+.review-header h3 {
+    color: var(--text-primary);
+    font-size: 1rem;
+    margin: 0;
+}

@@ -217,7 +217,7 @@ function mappa_letrehozas($path) {
 function kuldEmail($to, $subject, $body) {
     $headers  = "MIME-Version: 1.0\r\n";
     $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
-    $headers .= "From: BaTech <noreply@batech.hu>\r\n";
+    $headers .= "From: BaTech <support@batech.hu>\r\n";
     return mail($to, $subject, $body, $headers);
 }
 

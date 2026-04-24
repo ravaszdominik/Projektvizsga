@@ -1,0 +1,19 @@
+Options -Indexes
+
+# Block direct access to .env
+<FilesMatch "^\.env$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+RewriteEngine On
+
+# Redirect .php URLs to clean URLs (except index.php)
+RewriteCond %{THE_REQUEST} /([^.]+)\.php [NC]
+RewriteRule ^ /%1 [R=301,L]
+
+# Internally rewrite clean URLs to .php files
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/uploads/
+RewriteRule ^([^\.]+)$ $1.php [NC,L]

@@ -426,7 +426,7 @@ $messages = uzenetek();
                 <button class="profile-tab-btn" data-tab="references">Referenciáim</button>
                 <button class="profile-tab-btn" data-tab="new-review">Új értékelés</button>
                 <button class="profile-tab-btn" data-tab="new-reference">Új referencia</button>
-                <button class="profile-tab-btn" data-tab="change-password">Jelszó módosítása</button>
+                <button class="profile-tab-btn" data-tab="change-password">Jelszó</button>
                 <button class="profile-tab-btn" data-tab="notifications" style="position:relative;">
                     Értesítések
                     <?php if ($unread_count > 0): ?>
@@ -695,7 +695,7 @@ $messages = uzenetek();
                             <strong style="color:var(--text-primary);"><?= e($n['title'] ?? '') ?></strong>
                             <small style="color:var(--text-muted);"><?= date('Y. m. d. H:i', strtotime($n['created_at'])) ?></small>
                         </div>
-                        <p style="margin-top:0.4rem;color:var(--text-secondary);font-size:0.95rem;"><?= e($n['message'] ?? '') ?></p>
+                        <p style="margin-top:0.4rem;color:var(--text-secondary);font-size:0.95rem;"><?= $n['message'] ?? '' ?></p>
                     </div>
                     <?php endforeach; ?>
                 <?php endif; ?>
@@ -704,30 +704,7 @@ $messages = uzenetek();
     </main>
 
     <!-- ===== LÁBLÉC ===== -->
-    <footer class="footer">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-info">
-                    <h3>Vízművek Kft.</h3>
-                    <p><i class="fas fa-map-marker-alt"></i> 1234 Budapest, Víz út 5.</p>
-                    <p><i class="fas fa-phone"></i> +36 1 234 5678</p>
-                    <p><i class="fas fa-envelope"></i> info@vizmuvek.hu</p>
-                </div>
-                <div class="footer-links">
-                    <h3>Gyors linkek</h3>
-                    <ul>
-                        <li><a href="index.php">Főoldal</a></li>
-                        <li><a href="arak.php">Árak</a></li>
-                        <li><a href="referenciak.php">Referenciák</a></li>
-                        <li><a href="ertekelesek.php">Értékelések</a></li>
-                    </ul>
-                </div>
-            </div>
-            <div class="footer-bottom">
-                <p>&copy; <?= date('Y') ?> Vízművek Kft. - Minden jog fenntartva.</p>
-            </div>
-        </div>
-    </footer>
+    <?php include 'includes/footer.php'; ?>
 
     <script src="main.js"></script>
     <script>

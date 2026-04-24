@@ -16,7 +16,7 @@ $page_title = "Admin Felület | Vízművek" . ($is_demo ? ' - DEMO' : '');
 $csrf_token = csrf_token();
 
 // ============================================
-// ADATOK BETÖLTÉSE (DEMO vagy VALÓS)
+// ADATOK BETÖLTÉSE 
 // ============================================
 $conn = db();
 
@@ -47,7 +47,7 @@ if ($conn) {
     if ($result) $reviews = $result->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// Referenciák (JAVÍTVA: képek JSON kezelés)
+// Referenciák
 $references = [];
 if ($conn) {
     $result = $conn->query(
@@ -98,12 +98,21 @@ if ($conn) {
     if ($result) $audit_logs = $result->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// Kapcsolatfelvételi üzenetek
+// ===== KAPCSOLATFELVÉTELI ÜZENETEK =====
 $contact_messages = [];
 if ($conn) {
     try {
-        $result = $conn->query("SELECT * FROM contact_messages ORDER BY created_at DESC LIMIT 50");
-        if ($result) $contact_messages = $result->fetchAll(PDO::FETCH_ASSOC);
+        $result = $conn->query("SELECT * FROM contact_messages ORDER BY `read` ASC, created_at DESC LIMIT 100");
+        if ($result) {
+            $contact_messages = $result->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($contact_messages as &$cm) {
+                $r = $conn->prepare("SELECT r.*, u.name as admin_name FROM contact_replies r LEFT JOIN users u ON r.admin_id = u.id WHERE r.message_id = ? ORDER BY r.created_at ASC");
+                $r->execute([$cm['id']]);
+                $cm['replies']     = $r->fetchAll(PDO::FETCH_ASSOC);
+                $cm['reply_count'] = count($cm['replies']);
+            }
+            unset($cm);
+        }
     } catch (PDOException $e) {}
 }
 
@@ -112,14 +121,11 @@ if ($conn) {
 // ============================================
 function kuldUzenet($conn, $user_id, $tipus, $cim, $uzenet, $referencia_id = null) {
     if (!$conn) return false;
-    
     try {
-        $check = $conn->query("SHOW TABLES LIKE 'user_notifications'");
-        if ($check->rowCount() == 0) return false;
-        
         $stmt = $conn->prepare("INSERT INTO user_notifications (user_id, type, title, message, reference_id, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
         return $stmt->execute([$user_id, $tipus, $cim, $uzenet, $referencia_id]);
     } catch (Exception $e) {
+        error_log("kuldUzenet failed: " . $e->getMessage());
         return false;
     }
 }
@@ -220,7 +226,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             uzenet('success', 'Értékelés törölve!');
         }
         
-        // ===== REFERENCIA KEZELÉS (JAVÍTVA) =====
+        // ===== REFERENCIA KEZELÉS =====
         if ($action === 'approve_reference') {
             $id = (int)($_POST['reference_id'] ?? 0);
             
@@ -332,7 +338,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <p>Kedves <strong>" . htmlspecialchars($del_user['name']) . "</strong>!</p>
                     <p>Értesítjük, hogy BaTech fiókja törlésre került.</p>
                     <p><strong>Ok:</strong> " . htmlspecialchars($reason) . "</p>
-                    <p>Ha kérdése van, kérjük vegye fel velünk a kapcsolatot: <a href='mailto:info@batech.hu'>info@batech.hu</a></p>
+                    <p>Ha kérdése van, kérjük vegye fel velünk a kapcsolatot: <a href='mailto:support@batech.hu'>support@batech.hu</a></p>
                     <br><p>BaTech csapata</p>
                 ";
                 kuldEmail($del_user['email'], 'BaTech - Fiókja törlésre került', $email_body);
@@ -349,6 +355,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             atiranyit('admin.php#users');
         }
         
+        if ($action === 'send_broadcast') {
+            $title   = trim($_POST['broadcast_title'] ?? '');
+            $message = trim($_POST['broadcast_message'] ?? '');
+
+            if (!empty($title) && !empty($message)) {
+                try {
+                    $user_ids = $conn->query("SELECT id FROM users WHERE status = 'active'")->fetchAll(PDO::FETCH_COLUMN);
+                    $stmt = $conn->prepare("INSERT INTO user_notifications (user_id, type, title, message, created_at) VALUES (?, 'broadcast', ?, ?, NOW())");
+                    foreach ($user_ids as $uid) {
+                        $stmt->execute([$uid, $title, $message]);
+                    }
+                    audit_log('broadcast_notification', 'users', count($user_ids), $title);
+                    uzenet('success', 'Értesítés elküldve ' . count($user_ids) . ' felhasználónak!');
+                } catch (PDOException $e) {
+                    error_log("Broadcast failed: " . $e->getMessage());
+                    uzenet('error', 'Hiba történt az értesítés küldésekor!');
+                }
+            } else {
+                uzenet('error', 'A cím és az üzenet megadása kötelező!');
+            }
+            atiranyit('admin.php#users');
+        }
+
         // ===== SZOLGÁLTATÁS KEZELÉS =====
         if ($action === 'add_service') {
             $name     = trim($_POST['service_name'] ?? '');
@@ -459,10 +488,98 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             uzenet('success', 'Referencia hozzáadva!');
             atiranyit('admin.php#references');
         }
+
+        // ===== KAPCSOLATFELVÉTELI ÜZENETRE VÁLASZOLÁS =====
+        if ($action === 'reply_contact') {
+            $message_id = (int)($_POST['message_id'] ?? 0);
+            $reply_text = trim($_POST['reply_text'] ?? '');
+
+            if (empty($reply_text)) {
+                uzenet('error', 'A válasz megadása kötelező!');
+            } elseif ($message_id > 0) {
+                try {
+                    $stmt = $conn->prepare("SELECT name, email, user_id FROM contact_messages WHERE id = ?");
+                    $stmt->execute([$message_id]);
+                    $msg = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                    if ($msg) {
+                        // Check last reply — block if admin replied last
+                        $last = $conn->prepare("SELECT admin_id FROM contact_replies WHERE message_id = ? ORDER BY created_at DESC LIMIT 1");
+                        $last->execute([$message_id]);
+                        $last_reply = $last->fetch(PDO::FETCH_ASSOC);
+
+                        if ($last_reply && $last_reply['admin_id'] !== null) {
+                            uzenet('error', 'Már válaszolt erre az üzenetre. Várja meg a felhasználó válaszát!');
+                            atiranyit('admin.php#contacts');
+                        }
+                        // Find user by user_id first, then by email
+                        $user = null;
+                        if (!empty($msg['user_id'])) {
+                            $user_stmt = $conn->prepare("SELECT id FROM users WHERE id = ? LIMIT 1");
+                            $user_stmt->execute([$msg['user_id']]);
+                            $user = $user_stmt->fetch(PDO::FETCH_ASSOC);
+                        }
+                        if (!$user && !empty($msg['email'])) {
+                            $user_stmt = $conn->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
+                            $user_stmt->execute([$msg['email']]);
+                            $user = $user_stmt->fetch(PDO::FETCH_ASSOC);
+                        }
+
+                        if ($user) {
+                            kuldUzenet($conn, $user['id'], 'contact_reply', 'Válasz érkezett üzenetére',
+                                'Az adminisztrátor válaszolt a kapcsolatfelvételi üzenetére. <a href="kapcsolat.php#message-' . $message_id . '">Kattintson ide a megtekintéshez és válaszoláshoz.</a>');
+                        }
+
+                        $conn->prepare("INSERT INTO contact_replies (message_id, admin_id, reply_text, created_at) VALUES (?, ?, ?, NOW())")
+                             ->execute([$message_id, $_SESSION['user_id'], $reply_text]);
+                        $conn->prepare("UPDATE contact_messages SET `read` = 1, replied = 1 WHERE id = ?")->execute([$message_id]);
+                        audit_log('contact_reply', 'contact_message', $message_id, substr($reply_text, 0, 100));
+                        uzenet('success', 'Válasz elküldve!');
+                    }
+                } catch (PDOException $e) {
+                    error_log("Contact reply error: " . $e->getMessage());
+                    uzenet('error', 'Hiba történt!');
+                }
+            }
+            atiranyit('admin.php#contacts');
+        }
+
+        // ===== KAPCSOLATFELVÉTELI ÜZENET TÖRLÉSE =====
+        if ($action === 'delete_contact_message') {
+            $message_id = (int)($_POST['message_id'] ?? 0);
+            if ($message_id > 0) {
+                try {
+                    $stmt = $conn->prepare("SELECT name, subject FROM contact_messages WHERE id = ?");
+                    $stmt->execute([$message_id]);
+                    $msg = $stmt->fetch(PDO::FETCH_ASSOC);
+                    $conn->prepare("DELETE FROM contact_messages WHERE id = ?")->execute([$message_id]);
+                    audit_log('contact_message_delete', 'contact_message', $message_id, ($msg['name'] ?? '') . ' - ' . ($msg['subject'] ?? ''));
+                    uzenet('success', 'Üzenet törölve!');
+                } catch (PDOException $e) {
+                    uzenet('error', 'Hiba történt!');
+                }
+            }
+            atiranyit('admin.php#contacts');
+        }
+
+        // ===== ÖSSZES KAPCSOLATFELVÉTELI ÜZENET TÖRLÉSE =====
+        if ($action === 'delete_all_contact_messages') {
+            try {
+                $count = (int)$conn->query("SELECT COUNT(*) FROM contact_messages")->fetchColumn();
+                $conn->exec("DELETE FROM contact_messages");
+                audit_log('contact_messages_delete_all', 'contact_message', 0, "Összes üzenet törölve: $count db");
+                uzenet('success', "Összes üzenet törölve! ($count db)");
+            } catch (PDOException $e) {
+                uzenet('error', 'Hiba történt!');
+            }
+            atiranyit('admin.php#contacts');
+        }
+
     }
     
     atiranyit('admin.php');
 }
+
 
 $messages = uzenetek();
 ?>
@@ -521,7 +638,7 @@ $messages = uzenetek();
                 <li><a href="#references" data-tab="references"><i class="fas fa-images"></i> Referenciák <span class="menu-badge" id="pendingReferencesCount"><?= $pending_references ?></span></a></li>
                 <li><a href="#users" data-tab="users"><i class="fas fa-users"></i> Felhasználók</a></li>
                 <li><a href="#auditlog" data-tab="auditlog"><i class="fas fa-history"></i> Admin napló</a></li>
-                <li><a href="#contacts" data-tab="contacts"><i class="fas fa-envelope"></i> Üzenetek</a></li>
+                <li><a href="#contacts" data-tab="contacts"><i class="fas fa-envelope"></i> Üzenetek <span class="menu-badge" id="pendingContactsCount"><?= count(array_filter($contact_messages, fn($c) => $c['status'] === 'new')) ?></span></a></li>
             </ul>
             
             <?php if ($is_demo): ?>
@@ -583,13 +700,13 @@ $messages = uzenetek();
                 
                 <!-- CHARTS -->
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2rem;">
-                    <div style="background:var(--bg-surface);border-radius:16px;padding:1.5rem;box-shadow:var(--shadow);">
-                        <h3 style="margin-bottom:1rem;color:var(--text-primary);">Foglalások státusz szerint</h3>
-                        <canvas id="bookingStatusChart" height="200"></canvas>
+                    <div style="background:var(--bg-surface);border-radius:16px;padding:1rem;box-shadow:var(--shadow);">
+                        <h3 style="margin-bottom:0.5rem;color:var(--text-primary);font-size:0.95rem;">Foglalások státusz szerint</h3>
+                        <div style="height:180px;"><canvas id="bookingStatusChart"></canvas></div>
                     </div>
-                    <div style="background:var(--bg-surface);border-radius:16px;padding:1.5rem;box-shadow:var(--shadow);">
-                        <h3 style="margin-bottom:1rem;color:var(--text-primary);">Felhasználók és értékelések</h3>
-                        <canvas id="overviewChart" height="200"></canvas>
+                    <div style="background:var(--bg-surface);border-radius:16px;padding:1rem;box-shadow:var(--shadow);">
+                        <h3 style="margin-bottom:0.5rem;color:var(--text-primary);font-size:0.95rem;">Felhasználók és értékelések</h3>
+                        <div style="height:180px;"><canvas id="overviewChart"></canvas></div>
                     </div>
                 </div>
 
@@ -652,7 +769,7 @@ $messages = uzenetek();
                     </thead>
                     <tbody>
                         <?php if (empty($bookings)): ?>
-                        <tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted)"><i class="fas fa-calendar-times"></i> Még nincs foglalás.</td></tr>
+                        <tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted)"><i class="fas fa-calendar-times"></i> Még nincs foglalás.?</p>
                         <?php endif; ?>
                         <?php foreach ($bookings as $b): ?>
                         <?php $st = $b['status'] ?? 'pending'; ?>
@@ -821,22 +938,22 @@ $messages = uzenetek();
                                 <?php if (!empty($s['description'])): ?>
                                 <br><small style="color:var(--text-muted)"><i class="fas fa-align-left"></i> <?= e(mb_substr($s['description'], 0, 50)) ?>…</small>
                                 <?php endif; ?>
-                             </td>
-                             <td><?= e($s['category'] ?? '') ?></td>
-                             <td><?= e($s['price_range'] ?? '-') ?></td>
-                             <td><?= e($s['estimated_duration'] ?? '-') ?></td>
-                             <td>
+                              </td>
+                              <td><?= e($s['category'] ?? '') ?></td>
+                              <td><?= e($s['price_range'] ?? '-') ?></td>
+                              <td><?= e($s['estimated_duration'] ?? '-') ?></td>
+                              <td>
                                 <span class="priority-badge priority-<?= e($s['priority'] ?? 'normal') ?>">
                                     <i class="fas fa-flag"></i> <?= ['normal'=>'Normál','high'=>'Magas','urgent'=>'Sürgős'][$s['priority'] ?? 'normal'] ?>
                                 </span>
-                             </td>
-                             <td><?= (int)($s['display_order'] ?? 0) ?></td>
-                             <td>
+                              </td>
+                              <td><?= (int)($s['display_order'] ?? 0) ?></td>
+                              <td>
                                 <span class="status-<?= ($s['active'] ?? 1) ? 'confirmed' : 'pending' ?>">
                                     <i class="fas <?= ($s['active'] ?? 1) ? 'fa-check-circle' : 'fa-pause-circle' ?>"></i>
                                     <?= ($s['active'] ?? 1) ? 'Aktív' : 'Inaktív' ?>
                                 </span>
-                             </td>
+                              </td>
                             <td class="action-cell">
                                 <button class="btn-action btn-edit"
                                     onclick="openEditModal(<?= htmlspecialchars(json_encode($s), ENT_QUOTES) ?>)">
@@ -851,14 +968,14 @@ $messages = uzenetek();
                                         <i class="fas fa-trash"></i> Törlés
                                     </button>
                                 </form>
-                            </td>
-                         </tr>
+                             </td>
+                          </tr>
                         <?php endforeach; ?>
                         <?php if (empty($services)): ?>
-                         <tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted)"><i class="fas fa-tools"></i> Még nincs szolgáltatás.</td></tr>
+                          <tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted)"><i class="fas fa-tools"></i> Még nincs szolgáltatás.</td></tr>
                         <?php endif; ?>
                     </tbody>
-                </table>
+                 </table>
                 </div>
             </div>
 
@@ -941,29 +1058,29 @@ $messages = uzenetek();
                 <div class="table-responsive">
                 <table class="admin-table">
                     <thead>
-                         <tr>
+                        <tr>
                             <th><i class="fas fa-user"></i> Név</th>
                             <th><i class="fas fa-star"></i> Értékelés</th>
                             <th><i class="fas fa-align-left"></i> Szöveg</th>
                             <th><i class="fas fa-calendar-alt"></i> Dátum</th>
                             <th><i class="fas fa-tag"></i> Státusz</th>
                             <th><i class="fas fa-cog"></i> Műveletek</th>
-                         </tr>
+                        </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($reviews as $r): ?>
                         <?php $stars = str_repeat('★', (int)($r['rating'] ?? 0)) . str_repeat('☆', 5 - (int)($r['rating'] ?? 0)); ?>
-                         <tr>
-                             <td><i class="fas fa-user-circle"></i> <?= e($r['user_name'] ?? $r['guest_name'] ?? 'Névtelen') ?></td>
+                        <tr>
+                            <td><i class="fas fa-user-circle"></i> <?= e($r['user_name'] ?? $r['guest_name'] ?? 'Névtelen') ?></td>
                             <td style="color: #fbbf24; font-size: 1.2rem;"><?= $stars ?></td>
-                             <td><?= e(substr($r['comment'] ?? '', 0, 50)) ?>...</td>
-                             <td><?= date('Y-m-d', strtotime($r['created_at'] ?? '')) ?></td>
-                             <td>
+                            <td><?= e(substr($r['comment'] ?? '', 0, 50)) ?>...</td>
+                            <td><?= date('Y-m-d', strtotime($r['created_at'] ?? '')) ?></td>
+                            <td>
                                 <span class="status-<?= ($r['approved'] ?? 0) ? 'confirmed' : 'pending' ?>">
                                     <i class="fas <?= ($r['approved'] ?? 0) ? 'fa-check-circle' : 'fa-clock' ?>"></i>
                                     <?= ($r['approved'] ?? 0) ? 'Jóváhagyva' : 'Függőben' ?>
                                 </span>
-                             </td>
+                            </td>
                             <td class="action-cell">
                                 <?php if (!($r['approved'] ?? 0)): ?>
                                     <form method="POST" style="display:inline">
@@ -993,18 +1110,18 @@ $messages = uzenetek();
                                         <i class="fas fa-trash"></i> Törlés
                                     </button>
                                 </form>
-                             </td>
-                         </tr>
+                              </td>
+                          </tr>
                         <?php endforeach; ?>
                         <?php if (empty($reviews)): ?>
-                         <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)"><i class="fas fa-star"></i> Még nincs értékelés.</td></tr>
+                          <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)"><i class="fas fa-star"></i> Még nincs értékelés.</td></tr>
                         <?php endif; ?>
                     </tbody>
-                </table>
+                 </table>
                 </div>
             </div>
             
-            <!-- ===== REFERENCIÁK (JAVÍTVA - TÖBB KÉP MEGJELENÍTÉSSEL) ===== -->
+            <!-- ===== REFERENCIÁK ===== -->
             <div id="references" class="admin-tab">
                 <h1><i class="fas fa-images"></i> Referenciák kezelése
                     <button class="btn btn-primary" style="float:right;font-size:0.9rem;" onclick="document.getElementById('addReferenceForm').style.display = document.getElementById('addReferenceForm').style.display === 'none' ? 'block' : 'none'">
@@ -1057,7 +1174,7 @@ $messages = uzenetek();
                 <div class="table-responsive">
                 <table class="admin-table">
                     <thead>
-                         <tr>
+                        <tr>
                             <th><i class="fas fa-user"></i> Felhasználó</th>
                             <th><i class="fas fa-image"></i> Kép(ek)</th>
                             <th><i class="fas fa-heading"></i> Cím</th>
@@ -1066,16 +1183,16 @@ $messages = uzenetek();
                             <th><i class="fas fa-calendar-alt"></i> Dátum</th>
                             <th><i class="fas fa-tag"></i> Státusz</th>
                             <th><i class="fas fa-cog"></i> Műveletek</th>
-                         </tr>
+                        </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($references)): ?>
-                         <tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted)"><i class="fas fa-images"></i> Még nincs referencia.</td></tr>
+                          <tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted)"><i class="fas fa-images"></i> Még nincs referencia.</td></tr>
                         <?php else: ?>
                             <?php foreach ($references as $ref): ?>
-                             <tr>
-                                 <td><i class="fas fa-user-circle"></i> <?= e($ref['user_name'] ?? 'Ismeretlen') ?></td>
-                                 <td>
+                              <tr>
+                                  <td><i class="fas fa-user-circle"></i> <?= e($ref['user_name'] ?? 'Ismeretlen') ?></td>
+                                  <td>
                                     <?php if (!empty($ref['first_image'])): ?>
                                         <div style="display:flex; align-items:center; gap:0.5rem;">
                                             <img src="<?= e($ref['first_image']) ?>" style="width:50px; height:50px; object-fit:cover; border-radius:4px;" alt="kép">
@@ -1086,17 +1203,17 @@ $messages = uzenetek();
                                     <?php else: ?>
                                         <i class="fas fa-image" style="color:var(--text-muted); font-size:1.5rem;"></i>
                                     <?php endif; ?>
-                                 </td>
-                                 <td><strong><?= e($ref['title'] ?? '') ?></strong></td>
-                                 <td><?= e(substr($ref['description'] ?? '', 0, 50)) ?>...</td>
-                                 <td><?= e($ref['category'] ?? '-') ?></td>
-                                 <td><?= date('Y-m-d', strtotime($ref['created_at'] ?? '')) ?></td>
-                                 <td>
+                                  </td>
+                                  <td><strong><?= e($ref['title'] ?? '') ?></strong></td>
+                                  <td><?= e(substr($ref['description'] ?? '', 0, 50)) ?>...</td>
+                                  <td><?= e($ref['category'] ?? '-') ?></td>
+                                  <td><?= date('Y-m-d', strtotime($ref['created_at'] ?? '')) ?></td>
+                                  <td>
                                     <span class="status-<?= ($ref['approved'] ?? 0) ? 'confirmed' : 'pending' ?>">
                                         <i class="fas <?= ($ref['approved'] ?? 0) ? 'fa-check-circle' : 'fa-clock' ?>"></i>
                                         <?= ($ref['approved'] ?? 0) ? 'Jóváhagyva' : 'Jóváhagyásra vár' ?>
                                     </span>
-                                 </td>
+                                  </td>
                                 <td class="action-cell">
                                     <?php if (!($ref['approved'] ?? 0)): ?>
                                         <form method="POST" style="display:inline">
@@ -1127,7 +1244,7 @@ $messages = uzenetek();
                                         </button>
                                     </form>
                                 </td>
-                             </tr>
+                              </tr>
                             <?php endforeach; ?>
                         <?php endif; ?>
                     </tbody>
@@ -1138,17 +1255,40 @@ $messages = uzenetek();
             <!-- ===== FELHASZNÁLÓK ===== -->
             <div id="users" class="admin-tab">
                 <h1><i class="fas fa-users"></i> Felhasználók</h1>
+
+                <!-- ÉRTESÍTÉS KÜLDÉSE MINDENKINEK -->
+                <div class="admin-form" style="margin-bottom:2rem;">
+                    <h2><i class="fas fa-bullhorn"></i> Értesítés küldése minden felhasználónak</h2>
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
+                        <input type="hidden" name="action" value="send_broadcast">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Cím *</label>
+                                <input type="text" name="broadcast_title" placeholder="Pl. Akciós ajánlat!" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Üzenet *</label>
+                            <textarea name="broadcast_message" rows="3" placeholder="Az üzenet szövege..." required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary" onclick="return confirm('Biztosan elküldi ezt az értesítést minden felhasználónak?')">
+                            <i class="fas fa-paper-plane"></i> Küldés mindenkinek
+                        </button>
+                    </form>
+                </div>
+
                 <div class="table-responsive">
                 <table class="admin-table">
                     <thead>
-                         <tr>
+                        <tr>
                             <th><i class="fas fa-user"></i> Név</th>
                             <th><i class="fas fa-envelope"></i> Email</th>
                             <th><i class="fas fa-phone"></i> Telefon</th>
                             <th><i class="fas fa-calendar-alt"></i> Regisztráció</th>
                             <th><i class="fas fa-user-tag"></i> Típus</th>
                             <th><i class="fas fa-cog"></i> Műveletek</th>
-                         </tr>
+                        </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($users as $u): ?>
@@ -1191,10 +1331,10 @@ $messages = uzenetek();
                                 </button>
                                 <?php endif; ?>
                             </td>
-                         </tr>
+                          </tr>
                         <?php endforeach; ?>
                         <?php if (empty($users)): ?>
-                         <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)"><i class="fas fa-users"></i> Még nincs felhasználó.</td></tr>
+                          <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)"><i class="fas fa-users"></i> Még nincs felhasználó.?</p>
                         <?php endif; ?>
                     </tbody>
                 </table>
@@ -1230,7 +1370,7 @@ $messages = uzenetek();
                     </thead>
                     <tbody>
                         <?php if (empty($audit_logs)): ?>
-                        <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)"><i class="fas fa-history"></i> Még nincs naplóbejegyzés.</td></tr>
+                        <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)"><i class="fas fa-history"></i> Még nincs naplóbejegyzés.?</p>
                         <?php else: ?>
                         <?php 
                         $action_names = [
@@ -1247,6 +1387,10 @@ $messages = uzenetek();
                             'service_add'           => 'Szolgáltatás hozzáadva',
                             'service_edit'          => 'Szolgáltatás szerkesztve',
                             'service_delete'        => 'Szolgáltatás törölve',
+                            'broadcast_notification'=> 'Értesítés küldve mindenkinek',
+                            'contact_reply'         => 'Válasz küldve üzenetre',
+                            'contact_message_delete' => 'Kapcsolatüzenet törölve',
+                            'contact_messages_delete_all' => 'Összes üzenet törölve',
                         ];
                         foreach ($audit_logs as $log): ?>
                         <tr>
@@ -1266,40 +1410,259 @@ $messages = uzenetek();
                 </div>
             </div>
 
-            <!-- ===== KAPCSOLATFELVÉTELI ÜZENETEK ===== -->
-            <div id="contacts" class="admin-tab">
-                <h1><i class="fas fa-envelope"></i> Kapcsolatfelvételi üzenetek</h1>
-                <div class="table-responsive">
-                <table class="admin-table">
-                    <thead>
-                        <tr>
-                            <th><i class="fas fa-calendar-alt"></i> Dátum</th>
-                            <th><i class="fas fa-user"></i> Név</th>
-                            <th><i class="fas fa-envelope"></i> E-mail</th>
-                            <th><i class="fas fa-phone"></i> Telefon</th>
-                            <th><i class="fas fa-tag"></i> Tárgy</th>
-                            <th><i class="fas fa-comment"></i> Üzenet</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if (empty($contact_messages)): ?>
-                        <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)"><i class="fas fa-envelope"></i> Még nincs üzenet.</td></tr>
-                        <?php else: ?>
-                        <?php foreach ($contact_messages as $cm): ?>
-                        <tr style="<?= !$cm['read'] ? 'font-weight:600;' : '' ?>">
-                            <td><?= date('Y-m-d H:i', strtotime($cm['created_at'])) ?></td>
-                            <td><?= e($cm['name']) ?></td>
-                            <td><a href="mailto:<?= e($cm['email']) ?>"><?= e($cm['email']) ?></a></td>
-                            <td><?= e($cm['phone'] ?? '-') ?></td>
-                            <td><?= e($cm['subject'] ?? '-') ?></td>
-                            <td><?= e(substr($cm['message'], 0, 80)) ?>...</td>
-                        </tr>
-                        <?php endforeach; ?>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
-                </div>
+            <!-- ===== KAPCSOLATFELVÉTELI ÜZENETEK VÁLASZOKKAL ===== -->
+            <!-- ===== KAPCSOLATFELVÉTELI ÜZENETEK VÁLASZOKKAL ===== -->
+<div id="contacts" class="admin-tab">
+    <h1><i class="fas fa-envelope"></i> Kapcsolatfelvételi üzenetek
+        <button class="btn btn-secondary" style="float:right;font-size:0.9rem; background:#ef4444; border-color:#ef4444;" 
+                onclick="if(confirm('Biztosan törölni szeretné az ÖSSZES üzenetet? Ez a művelet nem visszavonható!')) document.getElementById('deleteAllMessagesForm').submit();">
+            <i class="fas fa-trash-alt"></i> Összes törlése
+        </button>
+    </h1>
+    
+    <form id="deleteAllMessagesForm" method="POST" style="display:none;">
+        <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
+        <input type="hidden" name="action" value="delete_all_contact_messages">
+    </form>
+    
+    <style>
+        .admin-contact-thread {
+            background: var(--bg-surface);
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            position: relative;
+        }
+        .admin-contact-header {
+            padding: 1rem 1.5rem;
+            background: var(--bg-surface-hover);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            cursor: pointer;
+            padding-right: 3.5rem;
+        }
+        .admin-contact-header:hover {
+            background: var(--bg-surface-active);
+        }
+        .admin-contact-subject {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+        .admin-contact-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+        .admin-contact-body {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .admin-contact-original {
+            background: var(--bg-surface-light);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        .admin-contact-reply-item {
+            background: var(--bg-input);
+            margin: 0.75rem 0 0.75rem 1.5rem;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            border-left: 3px solid var(--accent-blue);
+        }
+        .admin-contact-reply-admin {
+            border-left-color: #f59e0b;
+        }
+        .admin-contact-reply-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.8rem;
+        }
+        .admin-contact-reply-text {
+            color: var(--text-secondary);
+        }
+        .admin-reply-form {
+            padding: 1rem 1.5rem 1.5rem;
+            background: var(--bg-surface);
+            border-top: 1px solid var(--border-color);
+        }
+        .admin-reply-form textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-input);
+            color: var(--text-primary);
+            resize: vertical;
+            margin-bottom: 0.75rem;
+        }
+        .admin-reply-form button {
+            padding: 0.5rem 1rem;
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .contact-collapsed .admin-contact-body,
+        .contact-collapsed .admin-reply-form {
+            display: none;
+        }
+        .contact-collapsed .toggle-icon {
+            transform: rotate(-90deg);
+        }
+        .message-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+        }
+        .status-new {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .status-replied {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .dark-theme .status-new {
+            background: #450a0a;
+            color: #fca5a5;
+        }
+        .dark-theme .status-replied {
+            background: #064e3b;
+            color: #6ee7b7;
+        }
+        .delete-message-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            font-size: 1.1rem;
+            padding: 0.3rem;
+            border-radius: 6px;
+            transition: all 0.2s;
+            z-index: 10;
+        }
+        .delete-message-btn:hover {
+            background: #fee2e2;
+            color: #dc2626;
+            transform: scale(1.1);
+        }
+        .dark-theme .delete-message-btn:hover {
+            background: #450a0a;
+        }
+        .btn-danger {
+            background: #ef4444;
+            border-color: #ef4444;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+    </style>
+    
+    <div>
+        <?php if (empty($contact_messages)): ?>
+            <div class="no-messages" style="text-align:center;padding:3rem;background:var(--bg-surface);border-radius:12px;">
+                <i class="fas fa-envelope" style="font-size:3rem;opacity:0.5;margin-bottom:1rem;display:block;"></i>
+                <p>Még nincs kapcsolatfelvételi üzenet.</p>
             </div>
+        <?php else: ?>
+            <?php foreach ($contact_messages as $cm): ?>
+                <div class="admin-contact-thread" data-message-id="<?= $cm['id'] ?>">
+                    <!-- TÖRLÉS GOMB -->
+                    <form method="POST" onsubmit="return confirm('Biztosan törölni szeretné ezt az üzenetet és az összes hozzá tartozó választ? A művelet nem visszavonható!')">
+                        <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
+                        <input type="hidden" name="action" value="delete_contact_message">
+                        <input type="hidden" name="message_id" value="<?= $cm['id'] ?>">
+                        <button type="submit" class="delete-message-btn" title="Üzenet törlése">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </form>
+                    
+                    <div class="admin-contact-header" onclick="toggleContactThread(this.closest('.admin-contact-thread'))">
+                        <div class="admin-contact-subject">
+                            <i class="fas fa-user-circle"></i>
+                            <strong><?= e($cm['name']) ?></strong>
+                            <span style="font-size:0.9rem; color:var(--text-muted);">(<?= e($cm['email']) ?>)</span>
+                            <?php if ($cm['status'] === 'new'): ?>
+                                <span class="message-status status-new"><i class="fas fa-envelope"></i> Új, válaszra vár</span>
+                            <?php else: ?>
+                                <span class="message-status status-replied"><i class="fas fa-reply-all"></i> Válaszolva (<?= (int)$cm['reply_count'] ?> válasz)</span>
+                            <?php endif; ?>
+                            <?php if (!empty($cm['subject'])): ?>
+                                <span class="badge" style="background:var(--bg-input); padding:0.2rem 0.6rem; border-radius:20px; font-size:0.75rem;">
+                                    <i class="fas fa-tag"></i> <?= e($cm['subject']) ?>
+                                </span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="admin-contact-meta">
+                            <span><i class="fas fa-calendar-alt"></i> <?= date('Y-m-d H:i', strtotime($cm['created_at'])) ?></span>
+                            <?php if ($cm['phone']): ?>
+                                <span><i class="fas fa-phone"></i> <?= e($cm['phone']) ?></span>
+                            <?php endif; ?>
+                            <span><i class="fas fa-comments"></i> <?= (int)($cm['reply_count'] ?? 0) + 1 ?></span>
+                            <i class="fas fa-chevron-down toggle-icon"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="admin-contact-body">
+                        <div class="admin-contact-original">
+                            <strong><i class="fas fa-comment-dots"></i> Eredeti üzenet:</strong>
+                            <div style="margin-top:0.5rem; white-space:pre-wrap;"><?= nl2br(e($cm['message'])) ?></div>
+                        </div>
+                        
+                        <?php if (!empty($cm['replies'])): ?>
+                            <div style="margin-top: 1rem;">
+                                <strong><i class="fas fa-reply-all"></i> Válaszok:</strong>
+                                <?php foreach ($cm['replies'] as $reply): ?>
+                                    <div class="admin-contact-reply-item <?= $reply['admin_id'] ? 'admin-contact-reply-admin' : '' ?>">
+                                        <div class="admin-contact-reply-header">
+                                            <span>
+                                                <i class="fas <?= $reply['admin_id'] ? 'fa-user-shield' : 'fa-user' ?>"></i>
+                                                <?= $reply['admin_id'] ? e($reply['admin_name'] ?? 'Admin') . ' (Admin)' : ($reply['admin_name'] ?? 'Felhasználó') ?>
+                                            </span>
+                                            <span><?= date('Y-m-d H:i', strtotime($reply['created_at'])) ?></span>
+                                        </div>
+                                        <div class="admin-contact-reply-text"><?= nl2br(e($reply['reply_text'])) ?></div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <!-- Admin válasz űrlap -->
+                    <div class="admin-reply-form">
+                        <form method="POST" onsubmit="return validateAdminReply(this)">
+                            <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
+                            <input type="hidden" name="action" value="reply_contact">
+                            <input type="hidden" name="message_id" value="<?= $cm['id'] ?>">
+                            <textarea name="reply_text" rows="2" placeholder="Válasz írása ennek az üzenetnek..."></textarea>
+                            <button type="submit"><i class="fas fa-paper-plane"></i> Válasz küldése</button>
+                        </form>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
+    </div>
+</div>
+
 
         </main>
     </div>
@@ -1393,7 +1756,7 @@ $messages = uzenetek();
                     backgroundColor: ['#f59e0b','#3498db','#10b981','#ef4444'],
                 }]
             },
-            options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
         });
     }
 
@@ -1412,6 +1775,7 @@ $messages = uzenetek();
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
             }
@@ -1475,6 +1839,28 @@ $messages = uzenetek();
 
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape') closeEditModal();
+    });
+    
+    // Contact thread toggle
+    function toggleContactThread(thread) {
+        thread.classList.toggle('contact-collapsed');
+    }
+
+    function validateAdminReply(form) {
+        const textarea = form.querySelector('textarea[name="reply_text"]');
+        if (!textarea.value.trim()) {
+            alert('Kérjük, írja be a válaszát!');
+            textarea.focus();
+            return false;
+        }
+        return confirm('Biztosan elküldi ezt a választ? A felhasználó értesítést kap.');
+    }
+
+    // Alapértelmezetten csak a legújabb 3 üzenet legyen kinyitva
+    document.querySelectorAll('.admin-contact-thread').forEach((thread, index) => {
+        if (index >= 3) {
+            thread.classList.add('contact-collapsed');
+        }
     });
     </script>
 

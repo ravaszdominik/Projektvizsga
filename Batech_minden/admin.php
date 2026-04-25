@@ -2,17 +2,15 @@
 session_start();
 require_once 'config.php';
 
-// Admin ellenőrzés - CSAK akkor enged be, ha admin vagy demo
+// Admin ellenőrzés
 $is_admin = admin_e();
-$is_demo = demo_aktiv();
 
-// Ha se nem admin, se nem demo -> átirányítás
-if (!$is_admin && !$is_demo) {
+if (!$is_admin) {
     uzenet('error', 'Hozzáférés megtagadva! Csak adminisztrátorok léphetnek be.');
     atiranyit('login.php');
 }
 
-$page_title = "Admin Felület | Vízművek" . ($is_demo ? ' - DEMO' : '');
+$page_title = "Admin Felület | BaTech";
 $csrf_token = csrf_token();
 
 // ============================================
@@ -294,6 +292,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         if ($action === 'remove_admin') {
             $id = (int)($_POST['user_id'] ?? 0);
+
+            if ($id === (int)$_SESSION['user_id']) {
+                uzenet('error', 'Nem távolíthatja el saját admin jogosultságát!');
+                atiranyit('admin.php#users');
+            }
             
             $stmt = $conn->prepare("UPDATE users SET user_type = 'user' WHERE id = ?");
             $stmt->execute([$id]);
@@ -391,10 +394,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $active   = isset($_POST['service_active']) ? 1 : 0;
 
             $stmt = $conn->prepare(
-                "INSERT INTO services (name, title, category, price_range, description, estimated_duration, priority, icon, display_order, active)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                "INSERT INTO services (name, title, category, price_range, description, estimated_duration, priority, icon, display_order, active, created_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             );
-            $stmt->execute([$name, $name, $category, $price, $desc, $duration, $priority, $icon, $order, $active]);
+            $stmt->execute([$name, $name, $category, $price, $desc, $duration, $priority, $icon, $order, $active, $_SESSION['user_id']]);
             audit_log('service_add', 'service', $conn->lastInsertId(), $name);
             uzenet('success', 'Szolgáltatás hozzáadva!');
             atiranyit('admin.php#services');
@@ -598,21 +601,12 @@ $messages = uzenetek();
     <nav class="navbar admin-navbar">
         <div class="container">
             <a href="index.php" class="logo">
-                <i class="fas fa-tools"></i> BaTech<span><?= $is_demo ? 'Demo' : 'Admin' ?></span>
+                <i class="fas fa-tools"></i> BaTech<span>Admin</span>
             </a>
             <div class="admin-nav-controls">
                 
-                <?php if ($is_demo): ?>
-                <span class="demo-badge"><i class="fas fa-flask"></i> DEMO MÓD</span>
-                <?php endif; ?>
-                
                 <span id="adminUserName"><i class="fas fa-user-circle"></i> <?= e($_SESSION['user_name'] ?? 'Admin') ?></span>
-                
-                <?php if ($is_demo): ?>
-                <a href="login.php" class="btn btn-logout"><i class="fas fa-sign-out-alt"></i> Kilépés</a>
-                <?php else: ?>
                 <button id="logoutBtn" class="btn btn-logout"><i class="fas fa-sign-out-alt"></i> Kijelentkezés</button>
-                <?php endif; ?>
             </div>
         </div>
     </nav>
@@ -626,7 +620,7 @@ $messages = uzenetek();
                 </div>
                 <div class="profile-info">
                     <h3><?= e($_SESSION['user_name'] ?? 'Admin') ?></h3>
-                    <p><?= $is_demo ? 'Demo Admin' : 'Adminisztrátor' ?></p>
+                    <p>Adminisztrátor</p>
                 </div>
             </div>
             
@@ -640,13 +634,6 @@ $messages = uzenetek();
                 <li><a href="#auditlog" data-tab="auditlog"><i class="fas fa-history"></i> Admin napló</a></li>
                 <li><a href="#contacts" data-tab="contacts"><i class="fas fa-envelope"></i> Üzenetek <span class="menu-badge" id="pendingContactsCount"><?= count(array_filter($contact_messages, fn($c) => $c['status'] === 'new')) ?></span></a></li>
             </ul>
-            
-            <?php if ($is_demo): ?>
-            <div class="demo-sidebar">
-                <p><strong><i class="fas fa-flask"></i> DEMO MÓD</strong></p>
-                <p>Módosítások nem kerülnek mentésre</p>
-            </div>
-            <?php endif; ?>
         </aside>
 
         <!-- ===== FŐ TARTALOM ===== -->
@@ -655,13 +642,6 @@ $messages = uzenetek();
             <?php foreach ($messages as $msg): ?>
             <div class="message <?= $msg['type'] ?>"><i class="fas fa-info-circle"></i> <?= e($msg['text']) ?></div>
             <?php endforeach; ?>
-            
-            <?php if ($is_demo): ?>
-            <div class="demo-warning">
-                <i class="fas fa-flask"></i> <strong>DEMO MÓD</strong> - Ez egy bemutató felület, az adatok nem kerülnek mentésre!
-                <a href="login.php" class="btn btn-primary" style="float: right; padding: 0.3rem 1rem;"><i class="fas fa-sign-in-alt"></i> Valós bejelentkezés</a>
-            </div>
-            <?php endif; ?>
             
             <!-- ===== DASHBOARD ===== -->
             <div id="dashboard" class="admin-tab active">
@@ -1309,7 +1289,8 @@ $messages = uzenetek();
                                         <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
                                         <input type="hidden" name="action" value="remove_admin">
                                         <input type="hidden" name="user_id" value="<?= (int)$u['id'] ?>">
-                                        <button type="submit" class="btn-action btn-edit" title="Admin jog elvétele">
+                                        <button type="submit" class="btn-action btn-edit" title="Admin jog elvétele"
+                                            <?= $u['id'] == $_SESSION['user_id'] ? 'onclick="alert(\'Nem távolíthatja el saját admin jogosultságát!\'); return false;"' : 'onclick="return confirm(\'Biztosan elveszi az admin jogosultságot?\')"' ?>>
                                             <i class="fas fa-user-minus"></i> Admin eltávolítás
                                         </button>
                                     </form>
@@ -1623,9 +1604,12 @@ $messages = uzenetek();
                     </div>
                     
                     <div class="admin-contact-body">
-                        <div class="admin-contact-original">
-                            <strong><i class="fas fa-comment-dots"></i> Eredeti üzenet:</strong>
-                            <div style="margin-top:0.5rem; white-space:pre-wrap;"><?= nl2br(e($cm['message'])) ?></div>
+                        <div class="admin-contact-reply-item" style="margin-left:0;">
+                            <div class="admin-contact-reply-header">
+                                <span><i class="fas fa-user"></i> <?= e($cm['name']) ?></span>
+                                <span><?= date('Y-m-d H:i', strtotime($cm['created_at'])) ?></span>
+                            </div>
+                            <div class="admin-contact-reply-text"><?= nl2br(e($cm['message'])) ?></div>
                         </div>
                         
                         <?php if (!empty($cm['replies'])): ?>
@@ -1671,9 +1655,6 @@ $messages = uzenetek();
     .admin-tab { display: none; }
     .admin-tab.active { display: block; }
     .admin-menu a.active { background: rgba(255,255,255,0.1); border-left: 4px solid #3498db; }
-    .demo-badge { background: #fbbf24; color: #92400e; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.8rem; font-weight: bold; display: inline-flex; align-items: center; gap: 0.3rem; }
-    .demo-warning { background: #f59e0b; color: white; padding: 1rem; border-radius: 8px; margin-bottom: 2rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
-    .demo-sidebar { padding: 1rem; margin: 1rem; background: rgba(245,158,11,0.1); border-radius: 8px; color: white; font-size: 0.9rem; border: 1px solid #f59e0b; }
     .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 1rem; margin-bottom: 2rem; }
     .stat-card { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 1rem; }
     .dark-theme .stat-card { background: #1e293b; }

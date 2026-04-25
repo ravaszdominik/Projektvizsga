@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $last_was_user = $last_reply && $last_reply['admin_id'] === null;
 
                             if ($last_was_user && !$is_admin) {
-                                header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?') . '?error=consecutive#message-' . $reply_to);
+                                header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?') . '?error=consecutive');
                                 exit;
                             } else {
                             // Válasz mentése
@@ -72,6 +72,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } 
         // Új üzenet küldése
         else {
+            if (!$logged_in) {
+                $errors[] = 'Üzenet küldéséhez be kell jelentkeznie!';
+            } else {
             $name    = trim($_POST['name'] ?? '');
             $email   = trim($_POST['email'] ?? '');
             $phone   = trim($_POST['phone'] ?? '');
@@ -110,6 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $errors[] = 'Az adatbázis jelenleg nem elérhető.';
                 }
             }
+            } // end logged_in check
         }
     }
 }
@@ -414,13 +418,9 @@ if ($logged_in && $conn) {
                 </div>
             <?php elseif (!empty($reply_errors)): ?>
                 <?php foreach ($reply_errors as $err): ?>
-                    <div class="message error" id="reply-error-msg"><?= e($err) ?></div>
+                    <div class="message error"><?= e($err) ?></div>
                 <?php endforeach; ?>
-                <script>
-                    setTimeout(() => {
-                        document.getElementById('reply-error-msg')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }, 100);
-                </script>
+                <script>window.scrollTo({top: 0, behavior: 'smooth'});</script>
             <?php endif; ?>
 
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:3rem;margin-top:2rem;">
@@ -470,12 +470,24 @@ if ($logged_in && $conn) {
 
                 <!-- KAPCSOLATI ŰRLAP -->
                 <div>
+                    <?php if (!$logged_in): ?>
+                    <div style="background:var(--bg-surface);border-radius:16px;padding:2rem;text-align:center;border:1px solid var(--border-color);">
+                        <i class="fas fa-lock" style="font-size:2.5rem;color:var(--text-muted);margin-bottom:1rem;display:block;"></i>
+                        <h3 style="color:var(--text-primary);margin-bottom:0.75rem;">Bejelentkezés szükséges</h3>
+                        <p style="color:var(--text-secondary);margin-bottom:1.5rem;">Az üzenetküldéshez be kell jelentkeznie. Vendégként írhat nekünk e-mailt:</p>
+                        <p style="margin-bottom:1.5rem;"><a href="mailto:support@batech.hu" class="btn btn-primary"><i class="fas fa-envelope"></i> support@batech.hu</a></p>
+                        <p style="color:var(--text-muted);font-size:0.9rem;">vagy</p>
+                        <div style="display:flex;gap:1rem;justify-content:center;margin-top:1rem;">
+                            <a href="login.php" class="btn btn-primary"><i class="fas fa-sign-in-alt"></i> Bejelentkezés</a>
+                            <a href="register.php" class="btn btn-primary" style="background:var(--text-secondary);border-color:var(--text-secondary);"><i class="fas fa-user-plus"></i> Regisztráció</a>
+                        </div>
+                    </div>
+                    <?php else: ?>
                     <?php if (!empty($errors)): ?>
                         <?php foreach ($errors as $err): ?>
                             <div class="message error"><?= e($err) ?></div>
                         <?php endforeach; ?>
                     <?php endif; ?>
-                    
                     <form method="POST" id="contactForm">
                         <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
                         <div class="form-grid">
@@ -504,6 +516,7 @@ if ($logged_in && $conn) {
                             <i class="fas fa-paper-plane"></i> Üzenet küldése
                         </button>
                     </form>
+                    <?php endif; ?>
                 </div>
             </div>
             
@@ -528,15 +541,12 @@ if ($logged_in && $conn) {
                             </div>
                         </div>
                         <div class="message-body">
-                            <div class="message-text">
-                                <?= nl2br(e($msg['message'])) ?>
-                            </div>
-                            <div class="message-meta" style="margin-top:0.5rem; font-size:0.75rem;">
-                                <span><i class="fas fa-user"></i> <?= e($msg['name']) ?></span>
-                                <span><i class="fas fa-envelope"></i> <?= e($msg['email']) ?></span>
-                                <?php if ($msg['phone']): ?>
-                                <span><i class="fas fa-phone"></i> <?= e($msg['phone']) ?></span>
-                                <?php endif; ?>
+                            <div class="reply-item">
+                                <div class="reply-header">
+                                    <span class="reply-author"><i class="fas fa-user"></i> <?= e($msg['name']) ?></span>
+                                    <span class="reply-date"><?= date('Y-m-d H:i', strtotime($msg['created_at'])) ?></span>
+                                </div>
+                                <div class="reply-text"><?= nl2br(e($msg['message'])) ?></div>
                             </div>
                             
                             <!-- Válaszok megjelenítése -->

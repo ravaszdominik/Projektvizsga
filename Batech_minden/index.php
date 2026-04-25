@@ -83,6 +83,7 @@ $messages = uzenetek();
     <header class="hero">
         <div class="container">
             <div class="hero-content">
+                <div class="message info" style="margin-bottom:1.5rem;"><i class="fas fa-info-circle"></i> Rendszer frissítés miatt 2026. 04. 24.-én az összes adatot töröltük.</div>
                 <h1>Víz- és gázszerelési szolgáltatások</h1>
                 <p>Gyors, megbízható és professzionális víz- és gázszerelői munkák. 24 órás sürgősségi szolgáltatás.</p>
                 <div class="hero-buttons">

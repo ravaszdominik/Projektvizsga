@@ -49,7 +49,10 @@ CREATE TABLE IF NOT EXISTS `services` (
   `active`             tinyint(1)    NOT NULL DEFAULT 1,
   `display_order`      int(11)       NOT NULL DEFAULT 0,
   `created_at`         datetime      NOT NULL DEFAULT current_timestamp(),
-  PRIMARY KEY (`id`)
+  `created_by`         int(11)       DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `created_by` (`created_by`),
+  CONSTRAINT `services_user_fk` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================

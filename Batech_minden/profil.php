@@ -9,9 +9,8 @@ if (!bejelentkezve()) {
 }
 
 $page_title = "Profilom | Vízművek";
-$user_id = $_SESSION['user_id'];
-$is_admin = admin_e();
-$is_demo = demo_aktiv();
+$user_id    = $_SESSION['user_id'];
+$is_admin   = admin_e();
 $csrf_token = csrf_token();
 
 // ============================================

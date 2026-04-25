@@ -7,6 +7,7 @@ if (bejelentkezve()) {
 }
 
 $page_title = "Bejelentkezés | BaTech";
+$csrf_token = csrf_token();
 
 $errors      = [];
 $saved_email = '';
@@ -193,6 +194,18 @@ $messages = uzenetek();
                         <p>Nincs még fiókja? <a href="register.php">Regisztráljon itt</a></p>
                     </div>
                 </form>
+
+                <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid var(--border-color);text-align:center;">
+                    <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0.75rem;">Kipróbálná a rendszert?</p>
+                    <form method="POST" action="">
+                        <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
+                        <input type="hidden" name="email" value="test@example.com">
+                        <input type="hidden" name="password" value="Test123">
+                        <button type="submit" class="btn btn-secondary" style="width:100%;">
+                            <i class="fas fa-user"></i> Bejelentkezés tesztfiókkal
+                        </button>
+                    </form>
+                </div>
 
             </div>
         </div>
